@@ -1,0 +1,163 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/*
+ * デザイントークン「紙とインク」（UI再デザイン 2026-09）
+ *
+ * 正本は design_handoff_karte_redesign/README.md の「Design Tokens」節と
+ * designs/00_デザイン方針.dc.html。色の意味づけ（判定3色）と使い所はそちらを見る。
+ *
+ * 書体の実体（@font-face）は vite.config.js の bunny() が self-host で供給する。
+ * ここに書くのは family 名なので、追加・変更するときは vite.config.js と揃えること。
+ */
+@theme {
+    /* 書体 — 見出しと読む文章は明朝、UIは角ゴシック、数値・ID・日時は等幅 */
+    --font-serif: 'Noto Serif JP', ui-serif, 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    --font-sans: 'Noto Sans JP', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* 紙と面 */
+    --color-paper: #FBFAF7;
+    --color-surface: #FFFFFF;
+    --color-surface-alt: #FCFBF8;
+    --color-bench: #F6F4EF;
+    --color-canvas: #F1EFEA;
+    --color-group-head: #EFEDE6;
+
+    /* 罫線 */
+    --color-rule: #E1DED4;
+    --color-rule-thin: #EDEBE4;
+    --color-rule-input: #D6D2C6;
+
+    /* 墨 — 濃い順。ink-4 / ink-5 は「—」「未保存」等の空値。
+       ink-3 はデザイン正本が #8A8579 だが、紙地（#FBFAF7）の上で 3.52:1 と AA(4.5:1) を
+       下回り、11px のラベル・注記が沈んで読めなかったため #6F6B61（5.09:1）に落とす。
+       それに合わせて空値のトーンも1段濃くする（ink-4 は 2.07:1 で「—」や実行0回の行が
+       ほぼ見えなかった。3.52:1 の #8A8579 にして「弱いが見える」にする） */
+    --color-ink: #1B1A17;
+    --color-ink-2: #57544C;
+    --color-ink-3: #6F6B61;
+    --color-ink-4: #8A8579;
+    --color-ink-5: #B5B0A3;
+
+    /* 判定 — 整合 */
+    --color-match: #2E6B4E;
+    --color-match-bg: #F1F6F2;
+    --color-match-fg: #24543E;
+
+    /* 判定 — 要確認。正本は #9A6B12 だが薄地（#FDF8EC）の上で 4.42:1 と AA を下回るため
+       #8A5F10（5.32:1）に落とす。意味と見た目の印象は変えない */
+    --color-check: #8A5F10;
+    --color-check-bg: #FDF8EC;
+    --color-check-fg: #6B4A0C;
+
+    /* 判定 — 矛盾 */
+    --color-conflict: #A93226;
+    --color-conflict-bg: #FCF2F1;
+    --color-conflict-fg: #7E241B;
+    --color-conflict-border: #E0B3AC;
+
+    /* 判定 — 判定割れ */
+    --color-split: #6B4E8A;
+    --color-split-bg: #F6F2F9;
+    --color-split-fg: #4B3566;
+
+    /* 左レール（作業台型の画面） */
+    --color-rail: #1B1A17;
+    --color-rail-fg: #E8E5DC;
+    --color-rail-muted: #C7C3B8;
+    --color-rail-rule: #35332B;
+    --color-rail-danger: #E08479;
+    --color-rail-warn: #D9B36B;
+}
+
+/*
+ * ボタンの寸法（2段）
+ *
+ * 同じ役割のボタンが画面ごとに違う寸法になっていたため、寸法だけを2段に集約する。
+ * 色・枠・角丸は呼び出し側のクラスで指定し、ここは余白と文字サイズだけを持つ。
+ *
+ *   btn-md … その画面・その節の主操作（保存 / 分析実行 / ソースを追加 / 追加して開く）
+ *   btn-sm … 行の中・ツールバー・並んでいるボタン群の1つ
+ *
+ * 値は Tailwind の px-4 py-[7px] text-[13px] / px-3 py-[5px] text-[12px] と同じ。
+ * 11px 以下の極小タグ・チップは表示用でボタンではないため、この2段には入れない。
+ */
+@utility btn-md {
+    padding-inline: calc(var(--spacing) * 4);
+    padding-block: 7px;
+    font-size: 13px;
+}
+
+@utility btn-sm {
+    padding-inline: calc(var(--spacing) * 3);
+    padding-block: 5px;
+    font-size: 12px;
+}
+
+/*
+ * 入力欄の既定スタイル（D-6）
+ *
+ * Tailwind v4 の preflight は全要素を `border: 0 solid` / `padding: 0` にし、
+ * さらに input/select/textarea を `background-color: transparent` にリセットする。
+ * 画面側は `border-gray-300`（＝border-color だけ）を付けているため border-width が 0 のまま
+ * 残り、枠線も内側余白も背景も無い「素の文字列」に見えていた。ここで基本の見た目を戻す。
+ *
+ * 除外する type: checkbox / radio / file / range / color とボタン系（submit・reset・button・
+ * image）と hidden。これらはネイティブ描画で、枠線や padding を足すと崩れる。
+ * date / search はテキスト入力と枠線を揃えたいので対象に含める。
+ *
+ * 個別の見た目は utilities レイヤー（`border-gray-400` や `px-3` 等）が常に勝つため、
+ * ここでの指定は「何も付けていない入力欄の既定値」として働く。
+ *
+ * 2026-09 の再デザインで、枠色・角丸・フォーカスを「紙とインク」のトークンに載せ替えた。
+ */
+@layer base {
+    input:not(
+            [type='checkbox'],
+            [type='radio'],
+            [type='file'],
+            [type='range'],
+            [type='color'],
+            [type='submit'],
+            [type='reset'],
+            [type='button'],
+            [type='image'],
+            [type='hidden']
+        ),
+    select,
+    textarea {
+        border-width: 1px;
+        border-style: solid;
+        border-color: var(--color-rule-input);
+        border-radius: 2px;
+        background-color: var(--color-white);
+        padding-block: 0.375rem;
+        padding-inline: 0.625rem;
+
+        /* フォーカスリング。墨の実線 outline を内側に引く。強制カラーモードでも輪郭が残る */
+        &:focus {
+            outline: 2px solid var(--color-ink);
+            outline-offset: -1px;
+        }
+    }
+
+    /*
+     * ボタン・リンクのフォーカス。入力欄と同じ墨の実線で、キーボード操作の現在地を示す。
+     * 枠の外側に出す（内側に引くと、地色を持つボタンでは輪郭が文字に重なる）。
+     */
+    button:focus-visible,
+    a:focus-visible {
+        outline: 2px solid var(--color-ink);
+        outline-offset: 2px;
+    }
+
+    /* 左レール（暗い地）の上では墨の輪郭が沈んで見えないので、レールの文字色で描く */
+    .bg-rail a:focus-visible,
+    .bg-rail button:focus-visible {
+        outline-color: var(--color-rail-fg);
+    }
+}

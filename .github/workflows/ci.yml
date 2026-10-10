@@ -1,0 +1,123 @@
+# PR作成時と main への push で、テスト・整形チェック・ビルドを走らせる。
+#
+# 3つを別ジョブに分けているのは、PR の画面で「どれが落ちたか」が一目で分かるため。
+# 並列に走るので所要時間も変わらない。
+#
+# 注意: このアプリのAI分析は「ホストの codex バイナリ + ChatGPTサブスク認証」で動くため CI では実行できない。
+# ただしテストは tests/TestCase.php が ForbiddenAiRunner を差し込み、本物の codex / API が呼ばれたら
+# 例外になる作りなので、CI でもそのまま通る（＝ codex を呼ぶコードが混入したら CI が落ちて気づける）。
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 同じブランチに続けて push したとき、古い実行を止めて最新だけ走らせる（無料枠の節約）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          # ローカルと同じバージョンを使う（既定の古い node では Vite が動かない）
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - run: npm ci
+
+      # 型エラーは vue-tsc が現状動かないため（typescript 7 × vue-tsc 3 の非互換）、
+      # ビルドが通ることをフロントの検証に使う
+      - name: ビルド
+        run: npm run build
+
+      # Inertia のテストはビューの描画を通るため、@vite が読む manifest が要る。
+      # public/build は .gitignore 対象なので、ここで作ったものを PHPUnit ジョブへ渡す
+      - name: ビルド成果物を受け渡す
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: public/build
+          retention-days: 1
+
+  test:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+    # manifest が無いと Inertia の描画が 500 になり、画面系のテストが軒並み落ちる
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 をセットアップ
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          # テストDBは phpunit.xml で sqlite の :memory: を指定している
+          extensions: mbstring, pdo_sqlite, sqlite3, xml, curl, fileinfo
+          coverage: none
+
+      - name: composer のキャッシュ先を取得
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer install --prefer-dist --no-interaction --no-progress
+
+      # APP_KEY が無いと暗号化キャスト（google_credentials のトークン）を使うテストが落ちる
+      - name: .env を用意して APP_KEY を生成
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: ビルド成果物を受け取る
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: public/build
+
+      # マイグレーションは RefreshDatabase が :memory: に対して毎回流すため、ここでは実行しない
+      - name: テストを実行
+        run: php artisan test --without-tty
+
+  lint:
+    name: Lint (Pint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 をセットアップ
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, curl, fileinfo
+          coverage: none
+
+      - name: composer のキャッシュ先を取得
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer install --prefer-dist --no-interaction --no-progress
+
+      # --test は書き換えずに差分だけ報告する（CI では整形結果をコミットしない）
+      - name: 整形チェック
+        run: vendor/bin/pint --test

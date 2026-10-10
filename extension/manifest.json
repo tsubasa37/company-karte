@@ -1,0 +1,18 @@
+{
+    "manifest_version": 3,
+    "name": "企業カルテ クリップ",
+    "version": "0.6.0",
+    "description": "見ているページをボタンで選んで企業カルテへ追加（求人票/口コミ/ニュース/自動判定/一覧一括登録・投入先企業の指定）。勝手には送信しません。",
+    "permissions": ["activeTab", "scripting", "storage"],
+    "host_permissions": [
+        "http://127.0.0.1:8123/*",
+        "http://localhost:8123/*"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_title": "このページを企業カルテに追加",
+        "default_popup": "popup.html"
+    }
+}

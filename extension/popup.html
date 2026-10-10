@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8" />
+        <style>
+            body {
+                font: 13px/1.5 -apple-system, system-ui, sans-serif;
+                width: 300px;
+                margin: 0;
+                padding: 14px;
+                color: #1f2937;
+            }
+            h1 {
+                font-size: 14px;
+                margin: 0 0 8px;
+            }
+            #status {
+                margin-bottom: 10px;
+                white-space: pre-wrap;
+            }
+            a {
+                color: #2563eb;
+            }
+            .muted {
+                color: #6b7280;
+            }
+            #actions button {
+                display: block;
+                width: 100%;
+                margin-bottom: 6px;
+                padding: 7px 10px;
+                font-size: 13px;
+                text-align: left;
+                cursor: pointer;
+                background: #fff;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+            }
+            #actions button:hover:not(:disabled) {
+                background: #f3f4f6;
+            }
+            #actions button:disabled {
+                opacity: 0.45;
+                cursor: default;
+            }
+            #actions .primary {
+                background: #2563eb;
+                color: #fff;
+                border-color: #2563eb;
+            }
+            #actions .primary:hover:not(:disabled) {
+                background: #1d4ed8;
+            }
+            hr {
+                border: none;
+                border-top: 1px solid #e5e7eb;
+                margin: 8px 0;
+            }
+            #company-row {
+                margin-bottom: 10px;
+            }
+            #company-row label {
+                display: block;
+                margin-bottom: 3px;
+                font-size: 12px;
+                color: #6b7280;
+            }
+            #company {
+                width: 100%;
+                padding: 5px;
+                font-size: 13px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+            }
+            #company-note {
+                margin-top: 3px;
+                font-size: 11px;
+            }
+            /* 送信前プレビュー: 何を送ろうとしているかを開いた時点で必ず見せる枠。
+               押し間違えたタブに気づく最後の機会なので、開閉式にはしない。 */
+            #preview {
+                margin-bottom: 10px;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                background: #f9fafb;
+            }
+            #preview-head {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 8px;
+                border-bottom: 1px solid #e5e7eb;
+                font-size: 11px;
+                color: #374151;
+            }
+            /* ホスト名は「タブを間違えている」を一番早く伝えるので等幅で読みやすく出す */
+            #preview-host {
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: 11px;
+                color: #111827;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            #preview-text {
+                padding: 7px 8px;
+                font-size: 11px;
+                line-height: 1.5;
+                color: #4b5563;
+                /* 3行程度で頭打ちにして popup が縦に伸び続けないようにする */
+                max-height: 56px;
+                overflow: hidden;
+            }
+            #preview-more {
+                padding: 0 8px 6px;
+                font-size: 10px;
+                color: #9ca3af;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>企業カルテに追加</h1>
+        <div id="status" class="muted">ページを取得中…</div>
+        <div id="preview" hidden>
+            <div id="preview-head">
+                送信先ページ
+                <span id="preview-host"></span>
+            </div>
+            <div id="preview-text"></div>
+            <div id="preview-more"></div>
+        </div>
+        <div id="company-row">
+            <label for="company">投入先の企業（表記ゆれで別企業に割れるときに指定）</label>
+            <select id="company">
+                <option value="">AIに判定させる（既定）</option>
+            </select>
+            <div id="company-note" class="muted">登録済み企業を取得中…</div>
+        </div>
+        <div id="actions">
+            <button data-type="" class="primary">🤖 自動判定で追加（おまかせ）</button>
+            <button data-type="jobposting">📄 求人票として追加</button>
+            <button data-type="review">💬 口コミとして追加</button>
+            <button data-type="news">📰 ニュースとして追加</button>
+            <hr />
+            <button id="list-btn">📋 一覧ページ → 企業だけ一括登録</button>
+        </div>
+        <script src="common.js"></script>
+        <script src="popup.js"></script>
+    </body>
+</html>
